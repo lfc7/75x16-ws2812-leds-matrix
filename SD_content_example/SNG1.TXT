@@ -1,0 +1,55 @@
+#set next text auto
+AUTO 
+#display text
+TEXT Hello World !!!!
+#set background blue
+MACRO 5
+#prepare color (orange) for next macro
+DATA1 18
+#set text color (DATA1=orange)
+MACRO 14
+#next text manual
+MAN
+#display text
+TEXT Note ON 2 to get next text
+#prepare folder nb (1) for next macro
+DATA1 1
+#prepare file nb (1) for next macro
+DATA2 1
+#display IMG1/IMG1.PPM
+MACRO 21
+#set next text auto
+AUTO
+#display text
+TEXT Are You Fine ?
+#set next text manual
+MAN
+#prepare speed (64BPM)for next macro
+DATA1 64
+#fade in fade out effect
+MACRO 16
+#display text
+TEXT OK Note ON 2 to get next text
+#set next text auto
+AUTO
+#prepare file nb (1) for next macro
+DATA1 1
+#prepare speed in millis for next macro
+DATA2 50
+#display ANIM/ANIM1.PPM
+MACRO 21 
+TEXT exemple d'animation
+#prepare amount for next macro
+DATA1 50
+#prepare speed 120BPM for next macro
+DATA2 120
+#prepare color light white (30) for next macro
+DATA3 30
+#start glitter
+MACRO 22
+#set text scrool loop
+LOOP
+#next text manual
+MAN
+#display text
+TEXT fin de la démo.
