@@ -1,10 +1,16 @@
-/* text file parser ***************************************************
+/*  * 75x16 ws2812 display ***************************************************
  * 
- * teensy 4.1
+ * -- teensy 4.1 --
  * 
+ * text file parser
+ * .ppm image parser (ascii & raw)
+ * midi implementation
+ * serial command
+ * 
+
  * */
 
-#define DEBUG true
+//#define DEBUGGING  // enable line for serial debugging
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 #define GET_MILLIS millis
@@ -32,7 +38,7 @@
 #include <SPI.h>
 #include <MIDI.h>
 #include "ParserLib.h"
-#include <SerialCommand.h> // parse serial command
+#include "SerialCommand.h" // parse serial command
 
 #include "some_colors.h"
 
@@ -191,6 +197,7 @@ MacroList lRefreshMacros =
 };
 
 // declare control change 
+void dummy(byte value);
 void cc_set_brightness(byte value);
 void cc_set_text_file(byte value);
 void cc_set_background_color(byte value);
@@ -210,7 +217,7 @@ void cc_set_glitter_color(byte value);
 typedef void(*CC_List[])(byte value);
 CC_List lControlChange =
 {
-	dummmy,
+	dummy,
 	cc_set_brightness,
 	cc_set_text_file,
 	cc_set_background_color,
@@ -313,6 +320,11 @@ void	dummy() //do Nothing
 	;
 }
 
+void dummy(byte value) //do Nothing
+{
+	;
+}
+
 uint16_t beat88( uint16_t beats_per_minute, uint32_t timebase = 0)
 {
     return (((GET_MILLIS()) - timebase) * beats_per_minute * 65536) / 60000;
@@ -396,19 +408,25 @@ int readLine(File &afile, char *buffer, size_t len, uint32_t &pos)
   if (!afile)
   {
 	  
-	  if(DEBUG)Serial.println("readline errorFileNotOpen");
+	#ifdef DEBUGGING
+		Serial.println("readline errorFileNotOpen");
+	#endif
 		return errorFileNotOpen;
   }
  
   if (len < 3) 
     {
-		if(DEBUG)Serial.println("readline errorBufferTooSmall");
+		#ifdef DEBUGGING
+			Serial.println("readline errorBufferTooSmall");
+		#endif
 		return errorBufferTooSmall;
 	}
 
   if (!afile.seek(pos))
 	{
-		if(DEBUG)Serial.println("readline errorSeekError");
+		#ifdef DEBUGGING
+			Serial.println("readline errorSeekError");
+		#endif
 		return errorSeekError;
 	}
 
@@ -416,7 +434,9 @@ int readLine(File &afile, char *buffer, size_t len, uint32_t &pos)
   if (!bytesRead) {
     buffer[0] = '\0';
     //return 1; // done
-    //if(DEBUG)Serial.println("readline errorEndOfFile");
+    #ifdef DEBUGGING
+	Serial.println("readline errorEndOfFile");
+	#endif
     return errorEndOfFile;
   }
   
@@ -437,16 +457,21 @@ int readLine(File &afile, char *buffer, size_t len, uint32_t &pos)
       return errorNoError;
     }
   }
-  if (!afile.available()) {
-    // end of file without a newline
-    buffer[bytesRead] = '\0';
-    // return 1; //done
-    //if(DEBUG)Serial.println("readline errorEndOfFile");
-    return errorEndOfFile;
-  }
+	if (!afile.available()) 
+	{
+	// end of file without a newline
+		buffer[bytesRead] = '\0';
+	// return 1; //done
+		#ifdef DEBUGGING
+		Serial.println("readline errorEndOfFile");
+		#endif
+		return errorEndOfFile;
+	}
   
-  buffer[len-1] = '\0'; // terminate the string
-  if(DEBUG)Serial.println("readline errorBufferTooSmall");
+	buffer[len-1] = '\0'; // terminate the string
+	#ifdef DEBUGGING
+	Serial.println("readline errorBufferTooSmall");
+	#endif
   return errorBufferTooSmall;
 }
 
@@ -465,13 +490,17 @@ bool get_text_file(uint16_t filenumber)
 	//sprintf(filename, "%s", USITT_FILENAME);
 	sprintf(filename, FILENAMEFORMAT, filenumber);
 	
-	if(DEBUG)Serial.print("SD opening: " );
-	if(DEBUG)Serial.println(filename);
+	#ifdef DEBUGGING
+	Serial.print("SD opening: " );
+	Serial.println(filename);
+	#endif
 	
 	Global_SD_file=SD.open(filename);
 	if(! Global_SD_file) 
 	{
-		if(DEBUG)Serial.println("SD file not exist");
+		#ifdef DEBUGGING
+		Serial.println("SD file not exist");
+		#endif
 		return false;
 	}
 	
@@ -488,14 +517,18 @@ bool parse_getNextLine()
 	size_t res = 0;
 	if( readLine(Global_SD_file, strbuffer, len, Global_file_pos) >= errorNoError)
 	{
-		//if(DEBUG)Serial.println(strbuffer);
+		#ifdef DEBUGGING
+		Serial.println(strbuffer);
+		#endif
 		res =snprintf(parser_str,PARSER_TEXT_LEN,strbuffer);
 		parser.Init(parser_str, res, 8);
 		return true;
 	}
 	//here we probably reach the end of the SD text file
 	//should close it
-	if(DEBUG)Serial.println("Closing SD text file");
+	#ifdef DEBUGGING
+	Serial.println("Closing SD text file");
+	#endif
 	Global_SD_file.close();
 	return false;
 }
@@ -663,7 +696,7 @@ bool parse_Text()
 	size_t res;
 
 	char* CurrentItemPtr=parser.CurrentItemPointer();
-	res=parser.Read_CharArray(Parser::IsNewLine);//, true, [](char* data, size_t length,char* strbuffer) { if(DEBUG)Serial.print("test1 ");if(DEBUG)Serial.print(data);if(DEBUG)Serial.println(length);snprintf(strbuffer,length,"%s",data); });
+	res=parser.Read_CharArray(Parser::IsNewLine);//, true, [](char* data, size_t length,char* strbuffer) 
 	
 	if(res >= ARRAY_SIZE(Global_next_text_str))return 0;// too long str
 	
@@ -685,7 +718,9 @@ bool parse_getNextBitmapLine()
 	size_t len = PARSER_PPM_LEN;
 	if( readLine(Global_SD_bitmap_file, strbuffer, len, Global_bitmap_file_pos) >= errorNoError)
 	{
-		//if(DEBUG)Serial.println(strbuffer);
+		#ifdef DEBUGGING
+		Serial.println(strbuffer);
+		#endif
 		snprintf(PPMparser_str,PARSER_PPM_LEN,strbuffer);
 		PPMparser.Init(PPMparser_str, PARSER_PPM_LEN, 8);
 		return true;
@@ -703,20 +738,26 @@ bool get_SD_bitmap(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0, uint
 
 	sprintf(filename, BITMAPNAMEFORMAT,foldernumber, filenumber);
 	
-	if(DEBUG)Serial.print("SD opening: " );
-	if(DEBUG)Serial.println(filename);
+	#ifdef DEBUGGING
+	Serial.print("SD opening: " );
+	Serial.println(filename);
+	#endif
 	
 	Global_SD_bitmap_file=SD.open(filename);
 	if(! Global_SD_bitmap_file) 
 	{
-		if(DEBUG)Serial.println("SD file not exist");
+		#ifdef DEBUGGING
+		Serial.println("SD file not exist");
+		#endif
 		return false;
 	}
 	
 	//empty file
 	if( ! parse_getNextBitmapLine())
 	{
-		if(DEBUG)Serial.println("SD file empty");
+		#ifdef DEBUGGING
+		Serial.println("SD file empty");
+		#endif
 		Global_SD_bitmap_file.close();
 		return false;
 	}
@@ -726,7 +767,9 @@ bool get_SD_bitmap(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0, uint
 	snprintf(p3str,3,"P3");
 	if( ! PPMparser.Compare(p3str, 2))
 	{
-		if(DEBUG)Serial.println("SD file must start by P3 ( .ppm ascii)");
+		#ifdef DEBUGGING
+		Serial.println("SD file must start by P3 ( .ppm ascii)");
+		#endif
 		Global_SD_bitmap_file.close();
 		// ok let's try raw ( P6 )
 		return (get_SD_bitmap_raw(foldernumber, filenumber, x, y));
@@ -740,13 +783,21 @@ bool get_SD_bitmap(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0, uint
 		if(PPMparser.IfCurrentIs(Parser::IsDigit))
 		{
 			ppmsettings[countsettings]=PPMparser.Read_Uint8();
-			//if(DEBUG)Serial.println(ppmsettings[countsettings]);
+			
+			#ifdef DEBUGGING
+			Serial.println(ppmsettings[countsettings]);
+			#endif
+			
 			countsettings++;
 			PPMparser.SkipWhile(Parser::IsUSITTSeparator);
 			if(PPMparser.IfCurrentIs(Parser::IsNewLine))continue;
 			if(! PPMparser.IfCurrentIs(Parser::IsDigit))break;
 			ppmsettings[countsettings]=PPMparser.Read_Uint8();
-			//if(DEBUG)Serial.println(ppmsettings[countsettings]);
+			
+			#ifdef DEBUGGING
+			Serial.println(ppmsettings[countsettings]);
+			#endif
+			
 			countsettings++;
 		}
 	}
@@ -754,7 +805,9 @@ bool get_SD_bitmap(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0, uint
 	// bad PPM settings
 	if( countsettings != 3)
 	{
-		if(DEBUG)Serial.println("bitmap bad settings count");
+		#ifdef DEBUGGING
+		Serial.println("bitmap bad settings count");
+		#endif
 		Global_SD_bitmap_file.close();
 		return false;
 	}
@@ -809,39 +862,36 @@ bool get_SD_bitmap_raw(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0, 
 	//sprintf(filename, "%s", USITT_FILENAME);
 	sprintf(filename, BITMAPNAMEFORMAT,foldernumber, filenumber);
 	
-	if(DEBUG)Serial.print("SD opening: " );
-	if(DEBUG)Serial.println(filename);
+	#ifdef DEBUGGING
+	Serial.print("SD opening: " );
+	Serial.println(filename);
+	#endif
 	
 	Global_SD_bitmap_file=SD.open(filename);
 	if(! Global_SD_bitmap_file) 
 	{
-		if(DEBUG)Serial.println("SD file not exist");
+		#ifdef DEBUGGING
+		Serial.println("SD file not exist");
+		#endif
 		Global_SD_bitmap_file.close();
 		return false;
 	}
-
-	/*
-	if (!Global_SD_bitmap_file.seek(Global_bitmap_file_pos))
-	{
-		if(DEBUG)Serial.println("readline errorSeekError");
-		Global_SD_bitmap_file.close();
-		return errorSeekError;
-	}
-	* */
 	
 	//P6
 	if( Global_SD_bitmap_file.read(buffer,3) != 3 || buffer[0]!=0x50 || buffer[1]!=0x36 || buffer[2]!=0x0A)
 	{
-		if(DEBUG)Serial.println("SD error: read bad header");
+		#ifdef DEBUGGING
+		Serial.println("SD error: read bad header");
+		#endif
 		
 		return get_SD_bitmap(foldernumber, filenumber, x, y); //try P3 routine
 	}
 	
-	if(DEBUG)
-	{
-		Serial.print(buffer[0]);
-		Serial.println(buffer[1]);
-	}
+	#ifdef DEBUGGING
+	Serial.print(buffer[0]);
+	Serial.println(buffer[1]);
+	#endif
+
 	
 	//#
 	if(Global_SD_bitmap_file.read() == 0x23)
@@ -858,7 +908,9 @@ bool get_SD_bitmap_raw(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0, 
 		i++;
 		if(i >= ARRAY_SIZE(buffer))
 		{
-			if(DEBUG)Serial.println("SD error: bitmap header too long? ");
+			#ifdef DEBUGGING
+			Serial.println("SD error: bitmap header too long? ");
+			#endif
 			Global_SD_bitmap_file.close();
 			return false;
 		}
@@ -874,7 +926,9 @@ bool get_SD_bitmap_raw(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0, 
 		i++;
 		if(i>=ARRAY_SIZE(buffer))
 		{
-			if(DEBUG)Serial.println("SD error: bitmap header too long? ");
+			#ifdef DEBUGGING
+			Serial.println("SD error: bitmap header too long? ");
+			#endif
 			Global_SD_bitmap_file.close();
 			return false;
 		}
@@ -884,17 +938,18 @@ bool get_SD_bitmap_raw(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0, 
 	
 	if(ppmsettings[2] != 255)
 	{
-		if(DEBUG)Serial.println("SD error: bitmap header bad color ");
+		#ifdef DEBUGGING
+		Serial.println("SD error: bitmap header bad color ");
+		#endif
 		Global_SD_bitmap_file.close();
 		return false;
 	}
 	//end of header parser
-	if(DEBUG)
-	{
-		Serial.println(ppmsettings[0]);
-		Serial.println(ppmsettings[1]);
-		Serial.println(ppmsettings[2]);
-	}
+	#ifdef DEBUGGING
+	Serial.println(ppmsettings[0]);
+	Serial.println(ppmsettings[1]);
+	Serial.println(ppmsettings[2]);
+	#endif
 	
 	//go get pixels
 	uint8_t x_cpt=0;
@@ -916,7 +971,9 @@ bool get_SD_bitmap_raw(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0, 
 			if(y_cpt >= ppmsettings[1])break; // we reach the end of image
 		}
 	}
-	if(DEBUG)Serial.println("SD ok: bitmap ready ");
+	#ifdef DEBUGGING
+	Serial.println("SD ok: bitmap ready ");
+	#endif
 	Global_SD_bitmap_file.close();
 	return true;
 }
@@ -936,21 +993,29 @@ bool get_SD_bitmap_anim(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0,
 	sprintf(filename, ANIMNAMEFORMAT, filenumber);
 	Global_SD_bitmap_file.close();
 	
-	if(DEBUG)Serial.print("SD opening: " );
-	if(DEBUG)Serial.println(filename);
+	#ifdef DEBUGGING
+	Serial.print("SD opening: " );
+	Serial.println(filename);
+	#endif
 	
 	Global_SD_bitmap_file=SD.open(filename);
 	if(! Global_SD_bitmap_file) 
 	{
-		if(DEBUG)Serial.println("SD file not exist");
+		#ifdef DEBUGGING
+		Serial.println("SD file not exist");
+		#endif
 		Global_SD_bitmap_file.close();
 		return false;
 	}
-	if(DEBUG)Serial.print("SD opening OK " );
+	#ifdef DEBUGGING
+	Serial.print("SD opening OK " );
+	#endif
 
 	if (!Global_SD_bitmap_file.seek(0))
 	{
-		if(DEBUG)Serial.println("readline errorSeekError");
+		#ifdef DEBUGGING
+		Serial.println("readline errorSeekError");
+		#endif
 		Global_SD_bitmap_file.close();
 		return errorSeekError;
 	}
@@ -958,21 +1023,24 @@ bool get_SD_bitmap_anim(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0,
 	//P6
 	if( Global_SD_bitmap_file.read(buffer,3) != 3 || buffer[0]!=0x50 || buffer[1]!=0x36 || buffer[2]!=0x0A)
 	{
-		if(DEBUG)Serial.println("SD error: read bad header");
+		#ifdef DEBUGGING
+		Serial.println("SD error: read bad header");
+		#endif
 		Global_SD_bitmap_file.close();
 		return false; //
 	}
 	
-	if(DEBUG)
-	{
-		Serial.print(buffer[0]);
-		Serial.println(buffer[1]);
-	}
+	#ifdef DEBUGGING
+	Serial.print(buffer[0]);
+	Serial.println(buffer[1]);
+	#endif
 	
 	//#
 	if(Global_SD_bitmap_file.read() == 0x23)
 	{
-		if(DEBUG)Serial.println("SD info:skip comments ");
+		#ifdef DEBUGGING
+		Serial.println("SD info:skip comments ");
+		#endif
 		while( Global_SD_bitmap_file.read() != 0x0A)
 		{
 			; //seeking thru comment
@@ -985,7 +1053,9 @@ bool get_SD_bitmap_anim(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0,
 		i++;
 		if(i >= ARRAY_SIZE(buffer))
 		{
-			if(DEBUG)Serial.println("SD error: bitmap header too long? ");
+			#ifdef DEBUGGING
+			Serial.println("SD error: bitmap header too long? ");
+			#endif
 			Global_SD_bitmap_file.close();
 			return false;
 		}
@@ -1001,7 +1071,9 @@ bool get_SD_bitmap_anim(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0,
 		i++;
 		if(i>=ARRAY_SIZE(buffer))
 		{
-			if(DEBUG)Serial.println("SD error: bitmap header too long? ");
+			#ifdef DEBUGGING
+			Serial.println("SD error: bitmap header too long? ");
+			#endif
 			Global_SD_bitmap_file.close();
 			return false;
 		}
@@ -1011,17 +1083,18 @@ bool get_SD_bitmap_anim(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0,
 	
 	if(ppmsettings[2] != 255)
 	{
-		if(DEBUG)Serial.println("SD error: bitmap header bad color ");
+		#ifdef DEBUGGING
+		Serial.println("SD error: bitmap header bad color ");
+		#endif
 		Global_SD_bitmap_file.close();
 		return false;
 	}
 	//end of header parser
-	if(DEBUG)
-	{
+	#ifdef DEBUGGING
 		Serial.println(ppmsettings[0]);
 		Serial.println(ppmsettings[1]);
 		Serial.println(ppmsettings[2]);
-	}
+	#endif
 	
 	//go get pixels
 	uint16_t x_cpt=0;
@@ -1043,7 +1116,9 @@ bool get_SD_bitmap_anim(uint8_t foldernumber, uint8_t filenumber, uint8_t x = 0,
 			if(y_cpt >= ppmsettings[1])break; // we reach the end of image
 		}
 	}
-	if(DEBUG)Serial.println("SD ok: anim ready ");
+	#ifdef DEBUGGING
+		Serial.println("SD ok: anim ready ");
+	#endif
 	Global_SD_bitmap_file.close();
 	return true;
 }
