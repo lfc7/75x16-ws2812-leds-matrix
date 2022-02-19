@@ -2,7 +2,7 @@
 
 teensy 4.1 
 
--display text on SD, see documentation  
--display .ppm on SD  
--several macros  
--midi implementation see documentation 
+-display text and execute commands based on text file on SD, see documentation  
+-display .ppm images stored on SD  
+-several macros (background color, text color, fades, glitter ...)  
+-midi implementation see documentation  
