@@ -10,7 +10,8 @@
 
  * */
 
-//#define DEBUGGING  // enable line for serial debugging
+// uncomment next line for serial debugging
+//#define DEBUGGING  
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 #define GET_MILLIS millis
@@ -1513,6 +1514,7 @@ void refresh_matrix()
 
 void handleNoteOn(byte channel, byte number, byte value)
 {
+	if(number >= 30)cc_set_text_file(number - 30) //choose file number
 	if(number < ARRAY_SIZE(lMacros))lMacros[number]();
 }
 
