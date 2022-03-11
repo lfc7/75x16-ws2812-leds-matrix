@@ -21,7 +21,7 @@
 #define 	PARSER_TEXT_LEN		255	// MAX size of a file line 
 #define 	DISPLAY_TEXT_LENGHT	8	//in letters max
 #define		DISPLAY_CHAR_WIDTH	12	//in pixels
-#define		SCREEN_REFRESH_RATE 1	// in millis (5ms=200Hz; 10ms => 100Hz; 20ms => 50Hz and so on)
+#define		SCREEN_REFRESH_RATE 40	// in millis (5ms=200Hz; 10ms => 100Hz; 20ms => 50Hz and so on)
 
 #define 	NEO_LED_PIN 		6
 #define		SCREEN_MAX_X		75	//in led nb
@@ -1276,7 +1276,6 @@ void macro_display_SD_PPM()
 		
 	}
 }
-
 
 
 void macro_display_SD_mult_PPM()
