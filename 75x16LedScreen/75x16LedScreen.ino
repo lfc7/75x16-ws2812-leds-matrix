@@ -21,7 +21,7 @@
 #define 	PARSER_TEXT_LEN		255	// MAX size of a file line 
 #define 	DISPLAY_TEXT_LENGHT	8	//in letters max
 #define		DISPLAY_CHAR_WIDTH	12	//in pixels
-#define		SCREEN_REFRESH_RATE 5	// in millis (5ms=200Hz; 10ms => 100Hz; 20ms => 50Hz and so on)
+#define		SCREEN_REFRESH_RATE 1	// in millis (5ms=200Hz; 10ms => 100Hz; 20ms => 50Hz and so on)
 
 #define 	NEO_LED_PIN 		6
 #define		SCREEN_MAX_X		75	//in led nb
@@ -623,6 +623,7 @@ void parse_display_next_text()
 		{
 
 			Global_flag_auto_next=1;
+			Global_flag_auto_next_wait=0;
 			parser.SkipWhile(Parser::IsUSITTSeparator);
 			if(parser.IfCurrentIs(Parser::IsNewLine))continue;
 		
@@ -670,7 +671,9 @@ void parse_display_next_text()
 		if(parser.Compare(cmdstrA, 4) || parser.Compare(cmdstrB, 4))
 		{
 
-			parser.SkipWhile(Parser::IsUSITTSeparator);
+			//parser.SkipWhile(Parser::IsUSITTSeparator);
+			parser.Skip(1);
+			
 			if(! parse_Text())continue;
 			
 			Global_flag_next_text_ready=1;
@@ -687,7 +690,7 @@ void parse_display_next_text()
 // called by "parse_display_next_text()" , get main text (string)
 bool parse_Text()
 {
-	parser.SkipWhile(Parser::IsUSITTSeparator);
+	//parser.SkipWhile(Parser::IsUSITTSeparator); 
 	if(parser.IfCurrentIs(Parser::IsNewLine))
 	{
 		Global_next_text_str[0]=0;
@@ -1141,8 +1144,8 @@ void macro_clearAll()
 	Global_background_color=0;
 	Global_text_color=65535;
 	Global_next_text_str[0]=0;
-	Global_next_text_lenght=1;
-	Global_flag_next_text_ready=true;
+	Global_next_text_lenght=0;
+	Global_flag_next_text_ready=false;
 	matrix.fillScreen(0);
 	matrix.setCursor(0, 0);
 }
@@ -1274,6 +1277,8 @@ void macro_display_SD_PPM()
 	}
 }
 
+
+
 void macro_display_SD_mult_PPM()
 {
 	if(Global_macro_need_refresh == PPM_AUTO)
@@ -1300,8 +1305,8 @@ void macro_display_SD_anim_PPM()
 		Global_macro_need_refresh = NOREFRESH; // stop refresh
 	}else{
 		//if( Global_data1 > 0)Global_SD_bitmap_folderNb=Global_data1;
-		if( Global_data1 > 0)Global_SD_bitmap_fileNb=Global_data2;
-		if( Global_data2 > 0)Global_SD_bitmap_speed=Global_data3;
+		if( Global_data1 > 0)Global_SD_bitmap_fileNb=Global_data1;
+		if( Global_data2 > 0)Global_SD_bitmap_speed=Global_data2;
 		
 		if(get_SD_bitmap_anim(Global_SD_bitmap_folderNb, Global_SD_bitmap_fileNb, 0, 0))
 		{
@@ -1311,6 +1316,13 @@ void macro_display_SD_anim_PPM()
 		}
 		
 	}
+}
+
+void macro_display_SD_anim_PPM(uint8_t filenb, uint16_t speed)
+{
+	Global_data1=filenb;
+	Global_data2=speed;
+	macro_display_SD_anim_PPM();
 }
 
 void macro_glitter()
@@ -1335,7 +1347,7 @@ void refreshMacroStrobe()
  
 	if ( beat >= 127 )
 	{
-		matrix.fillScreen(Global_strobe_color);
+		matrix.setTextColor(Global_background_color);
 	}
 	  
 }
@@ -1448,11 +1460,21 @@ boolean refresh_scrolling_text()
 	lRefreshMacros[Global_macro_need_refresh]();
 	
 	//deal with txt
-	matrix.setCursor(Global_scroll_x, 0);
+	matrix.setCursor(Global_scroll_x, 1);
 	matrix.print(strbuffer);
 	//matrix.show();
 	
 	//prepare next round
+	if( Global_scroll_speed < 1)
+	{
+		if(Global_flag_auto_next)
+		{
+			if(Global_flag_auto_next_elapsed > Global_flag_auto_next_wait)parse_display_next_text();
+		}
+	}
+	
+	
+	
 	if( Global_scroll_speed > 0 && --Global_scroll_x <= (0 - DISPLAY_CHAR_WIDTH))
 	{
 		
@@ -1463,8 +1485,7 @@ boolean refresh_scrolling_text()
 		{
 			if(Global_flag_auto_next)
 			{
-				if(Global_flag_auto_next_elapsed > Global_flag_auto_next_wait)
-				parse_display_next_text();
+				if(Global_flag_auto_next_elapsed > Global_flag_auto_next_wait) parse_display_next_text();
 			}
 			
 			if(Global_flag_loop)
@@ -1514,7 +1535,8 @@ void refresh_matrix()
 
 void handleNoteOn(byte channel, byte number, byte value)
 {
-	if(number >= 30)cc_set_text_file(number - 30) //choose file number
+	if(number >= 30 && number < 50)cc_set_text_file(number - 30); //choose file number
+	if(number >= 50 && number < 70)macro_display_SD_anim_PPM((number - 50), value * 4 ); //choose file number
 	if(number < ARRAY_SIZE(lMacros))lMacros[number]();
 }
 
